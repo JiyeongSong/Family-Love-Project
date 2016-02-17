@@ -1,0 +1,273 @@
+'Option Explicit
+Option Base 1
+
+Sub main()
+
+''# Better if add to check Bin as true, in the front of Eval_.
+
+
+''#'#'#'#'# Input '#'#'#'#'#
+  DeathRateAnn = 0.0012
+  LapseRateAnn = 0.12
+  WxDist = 1 / 12
+  ProjYr = 30
+  
+  
+  FixedLives = 100
+
+'  '#= Constant ='#
+  MM = 12
+
+''#'#'#'#'# Calculation '#'#'#'#'#
+
+'  '#= Variable Setting ='#
+'For Bin, 0 is false
+    
+  Private Lives() As Double: ReDim Lives(ProjYr, MM) As Double
+    Private Bin_Lives() As Boolean: ReDim Bin_Lives(ProjYr, MM) As Boolean
+
+  Private Deaths() As Double: ReDim Deaths(ProjYr, MM) As Double
+    Private Bin_Deaths() As Boolean: ReDim Bin_Deaths(ProjYr, MM) As Boolean
+
+  Private Lapses() As Double: ReDim Lapses(ProjYr, MM) As Double
+    Private Bin_Lapses() As Boolean: ReDim Bin_Lapses(ProjYr, MM) As Boolean
+
+  Private Qmo() As Double: ReDim Qmo(ProjYr, MM) As Double
+    Private Bin_Qmo() As Boolean: ReDim Bin_Qmo(ProjYr, MM) As Boolean
+
+  Private sQmo() As Double: ReDim sQmo(ProjYr, MM) As Double
+    Private Bin_sQmo() As Boolean: ReDim Bin_sQmo(ProjYr, MM) As Boolean
+
+  Private lQmo() As Double: ReDim lQmo(ProjYr, MM) As Double
+    Private Bin_lQmo() As Boolean: ReDim Bin_lQmo(ProjYr, MM) As Boolean
+
+  Private Wmo() As Double: ReDim Wmo(ProjYr, MM) As Double
+    Private Bin_Wmo() As Boolean: ReDim Bin_Wmo(ProjYr, MM) As Boolean
+
+  Private sWmo() As Double: ReDim sWmo(ProjYr, MM) As Double
+    Private Bin_sWmo() As Boolean: ReDim Bin_sWmo(ProjYr, MM) As Boolean
+
+  Private lWmo() As Double: ReDim lWmo(ProjYr, MM) As Double
+    Private Bin_lWmo() As Boolean: ReDim Bin_lWmo(ProjYr, MM) As Boolean
+    
+  Private WxDistAg() As Double: ReDim WxDistAg(ProjYr, MM) As Double
+    Private Bin_WxDistAg() As Boolean: ReDim Bin_WxDistAg(ProjYr, MM) As Boolean
+  
+   
+    
+  '#= Evaluation ='#
+  For t = 1 To ProjYr
+    For h = 1 To 12
+
+      Call Eval_Qmo(t, h)
+      Call Eval_sQmo(t, h)
+      Call Eval_lQmo(t, h)
+
+      Call Eval_Wmo(t, h)
+      Call Eval_sWmo(t, h)
+      Call Eval_lWmo(t, h)
+
+      Call Eval_Lives(t, h)
+      Call Eval_Deaths(t, h)
+      Call Eval_Lapses(t, h)
+
+    Next
+  Next
+
+'#'#'#'#'# Result '#'#'#'#'#
+  Debug.Print Lives(1, 1)
+  
+
+End Sub
+
+
+'  '#= sub Setting ='#
+  Sub Eval_WxDistAg(t, h)
+  If Bin_WxDistAg(t, h) = True Then: Else ''# Do not calculate again when Bin is true
+    WxDistAg(t, h) = WxDist
+    Bin_WxDistAg(t, h) = True
+  End If
+  End Sub
+
+
+  Sub Eval_Wmo(t, h)
+  If Bin_Wmo(t, h) = True Then: Else '# Do not calculate again when Bin is true
+    If Bin_WxDistAg(t, h) = False Then
+      Call Eval_WxDistAg(t, h)
+    Else '#
+  End If
+  End If
+
+    Wmo(t, h) = LapseRateAnn * WxDistAg(t, h)
+    Bin_Wmo(t, h) = True
+
+  End Sub
+
+
+  Sub Eval_sWmo(t, h)
+  If Bin_sWmo(t, h) = True Then: Else '# Do not calculate again when Bin is true
+    If h = 1 Then
+        If Bin_lWmo(t, h) = False Then
+          Call Eval_lWmo(t, h)
+        Else '#
+        End If
+      sWmo(t, h) = Min(1, lWmo(t, h))
+    Else
+
+        If Bin_lWmo(t, h) = False Then
+          Call Eval_lWmo(t, h)
+        Else '#
+        End If
+
+        'main calc
+        If h > 1 Then: sWmo(t, h) = Min(1, sWmo(t, h - 1) + lWmo(t, h))
+        Else:          sWmo(t, h) = Min(1, sWmo(t - 1, MM) + lWmo(t, h))
+        End If
+    
+    End If
+
+    Bin_sWmo(t, h) = True
+  End If
+  End Sub
+
+
+  Sub Eval_lWmo(t, h)
+  If Bin_lWmo(t, h) = True Then: Else '# Do not calculate again when Bin is true
+    If h = 1 Then
+        If Bin_Wmo(t, h) = False Then
+          Call Eval_Wmo(t, h)
+        Else '#
+        End If
+      lWmo(t, h) = Min(1, Wmo(t, h))
+    Else
+        '#if Bin_sWmo(t, h-1) = false
+        '#  Eval_sWmo(t, h-1)
+        '#else '#
+        '#end
+
+        If Bin_Wmo(t, h) = False Then
+          Call Eval_Wmo(t, h)
+        Else '#
+        End If
+        
+        'main calc
+        If h > 1 Then: lWmo(t, h) = Min(1 - sWmo(t, h - 1), Wmo(t, h))
+        Else:          lWmo(t, h) = Min(1 - sWmo(t - 1, MM), Wmo(t, h))
+        End If
+        
+    End If
+
+    Bin_lWmo(t, h) = True
+  End If
+  End Sub
+
+
+
+  Sub Eval_Qmo(t, h)
+  If Bin_WxDistAg(t, h) = True Then: Else '# Do not calculate again when Bin is true
+    Qmo(t, h) = DeathRateAnn / 12
+    Bin_Qmo(t, h) = True
+  End If
+  End Sub
+  
+
+
+  Sub Eval_sQmo(t, h)
+    If h = 1 Then
+        If Bin_lQmo(t, h) = False Then
+          Call Eval_lQmo(t, h)
+        Else: End If
+      sQmo(t, h) = Min(1, lQmo(t, h))
+    Else
+
+        If Bin_lQmo(t, h) = False Then
+          Call Eval_lQmo(t, h)
+        Else: End If
+
+        'main calc
+        If h > 1 Then: sQmo(t, h) = Min(1, sQmo(t, h - 1) + lQmo(t, h))
+        Else:          sQmo(t, h) = Min(1, sQmo(t - 1, MM) + lQmo(t, h))
+        End If
+    End If
+
+    Bin_sQmo(t, h) = True
+  End Sub
+
+
+  Sub Eval_lQmo(t, h)
+    If h = 1 Then
+        If Bin_Qmo(t, h) = False Then
+          Call Eval_Qmo(t, h)
+        Else: End If
+      lQmo(t, h) = Min(1, Qmo(t, h))
+    Else
+        '#if Bin_sQmo(t, h-1) = false
+        '#  Eval_sQmo(t, h-1)
+        '#Else: End
+
+        If Bin_Qmo(t, h) = False Then
+          Call Eval_Qmo(t, h)
+        Else: End
+
+        'main calc
+        If h > 1 Then: lQmo(t, h) = Min(1 - sQmo(t, h - 1), Qmo(t, h))
+        Else:          lQmo(t, h) = Min(1 - sQmo(t - 1, MM), Qmo(t, h))
+        End If
+        
+    End If
+
+    Bin_lQmo(t, h) = True
+  End Sub
+
+  Sub Eval_Lives(t, h)
+    If (t = 1) & (h = 1) Then
+      Lives(t, h) = FixedLives
+    Else
+      '# In case of Lives we know Commutations are well-defined at (1, 1), so Bin check is skipped.
+      
+        'main calc
+        If h > 1 Then: Lives(t, h) = Max(0, Lives(t, h - 1) - Deaths(t, h - 1) - Lapses(t, h - 1))
+        Else:          Lives(t, h) = Max(0, Lives(t - 1, MM) - Deaths(t - 1, MM) - Lapses(t - 1, MM))
+        End If
+    
+    End If
+
+    Bin_Lives(t, h) = True
+  End Sub
+
+  Sub Eval_Deaths(t, h)
+    If h > 1 Then
+    
+        'main calc
+        If h > 1 Then: mWmo = Max(0, 1 - sWmo(t, h - 1))
+        Else:          mWmo = Max(0, 1 - sWmo(t - 1, MM))
+        End If
+    Else
+     mWmo = 1
+    End If
+
+        If Bin_lQmo(t, h) = False Then
+          Call Eval_lQmo(t, h)
+        Else: End If
+
+    Deaths(t, h) = Lives(t, 1) * mWmo * lQmo(t, h)
+    Bin_Deaths(t, h) = True
+  End Sub
+
+  Sub Eval_Lapses(t, h)
+      If Bin_sQmo(t, h) = False Then
+        Call Eval_sQmo(t, h)
+      Else: End If
+    mQmo = Max(0, 1 - sQmo(t, h))
+
+      If Bin_lWmo(t, h) = False Then
+        Call Eval_lWmo(t, h)
+      Else '#
+      End If
+    Lapses(t, h) = Lives(t, 1) * mQmo * lWmo(t, h)
+    Bin_Lapses(t, h) = True
+  End Sub
+
+
+
+
